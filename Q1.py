@@ -63,6 +63,12 @@ class MyModel(Model):
     def layer_3(self, x):
         return self.maxpool(x)
 
+    def layer_4a(self, x):
+        return self.conv2a(x[:, :, :, :48])
+
+    def layer_4b(self, x):
+        return self.conv2b(x[:, :, :, 48:])
+
     def layer_4(self, x):
         return self.relu(tf.concat((self.conv2a(x[:, :, :, :48]), self.conv2b(x[:, :, :, 48:])), 3))
 
@@ -138,10 +144,9 @@ def normalize_image(image):
 
 
 def show_image(image, title=''):
-    img = normalize_image(image)
     plt.figure()
     plt.title(title)
-    plt.imshow(img)
+    plt.imshow(image)
 
 
 def plot(x, y1, y2=None, title='', xlabel='', ylabel='', label1='', label2=''):
@@ -155,104 +160,46 @@ def plot(x, y1, y2=None, title='', xlabel='', ylabel='', label1='', label2=''):
 
 
 @tf.function
-def step(image, target, model, loss_function, training_loss, image_norm, optimizer, reg_coeff, layer_index):
+def step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index):
     with tf.GradientTape() as tape:
         norm = tf.square(tf.norm(image))
-        prediction = model.run_up_to(layer_index, image)
-        loss = loss_function(target, prediction) * (reg_coeff * norm)
+        prediction = model.run_up_to(layer_index, image)[0]  # since we predict for one image at each step, no need for the batch index
+        if len(prediction.shape) == 3:
+            loss = -tf.math.reduce_mean(prediction[:, :, neuron_index]) + reg_coeff * norm
+        else:
+            loss = -tf.math.reduce_mean(prediction[neuron_index]) + reg_coeff * norm
     training_loss(loss)
     image_norm(norm)
     gradients = tape.gradient(loss, [image, ])
     optimizer.apply_gradients(zip(gradients, [image, ]))
 
 
-def visualize_activation(model, layer_index, target_activation, reg_coeff=1e-5, optimization_steps=1000, learning_rate=50):
+def visualize_activation(model, layer_index, neuron_index, reg_coeff=1e-4, optimization_steps=10000, learning_rate=0.1):
     image = tf.Variable(generate_random_image())
-    label = [tf.Variable(target_activation)]
-    loss_function = tf.keras.losses.CategoricalCrossentropy()
     training_loss = tf.keras.metrics.Mean(name='training_loss')
-    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)  # todo: maybe pass as a parameter for us to be able to change it for each layer
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     image_norm = tf.keras.metrics.Mean(name='input_norm')  # todo: maybe remove?
     losses = list()
     norms = list()  # todo: might remove
     for i in range(1, optimization_steps + 1):
-        print('step {}'.format(i)) if i in [1, optimization_steps] or not i % (optimization_steps // 10) else None
-        step(image, label, model, loss_function, training_loss, image_norm, optimizer, reg_coeff, layer_index)
+        step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index)
         losses.append(training_loss.result())
         norms.append(image_norm.result())
+        print('step {}: loss - {}, image norm - {}'.format(i, losses[-1], norms[-1])) if i in [1, optimization_steps] or not i % (optimization_steps // 100) else None
     return np.asarray(image[0]), losses, norms
 
 
-@tf.function
-def optimization_step(mode, layerIndex, neuronIndex, regCoeff, optimizer, lossFunction, trainingLoss):
-    pass
-
-
-def visualize_neuron(model, layerIndex, neuronIndex, regCoeff=1e-5, optimization_steps=10000, learning_rate=0.01):
-    image = tf.Variable(generate_random_image())
-    lossFunction = None  # set as negative
-
-
-def get_random_target_activation_for_model(layer_index):
-    """
-    Generates a random activation of a layer in the model.
-    (20.12.19 - At this points, it is mainly used as a way to determine that the algorithm works in general,
-    since generating actual target activations for hidden layers that make sense is complicated)
-    :param layer_index: The index of the layer in which the activation is requested (assumes the index is valid).
-    :return: A random activation with the shape of the output of the model when running up to the specific layer (including).
-    """
-    if layer_index == 0:
-        # for this, the model simply returns the input layer.
-        return generate_random_image()
-    elif layer_index in [1, 2]:
-        # layer 1 is a regular convolution layer followed by a relu activation function.
-        # layer 2 is a local response normalization layer.
-        return np.random.rand(1, 56, 56, 96)
-    elif layer_index == 3:
-        # layer 3 is a max pool layer.
-        return np.random.rand(1, 27, 27, 96)
-    elif layer_index in [4, 5]:
-        # layer 4 splits the input into two (1, 27, 27, 48)-shaped tensors, preforms a different convolution
-        # on each into a (1, 27, 27, 128)-shaped tensor, concatenates them, and preforms a relu activation on the result.
-        # layer 5 is a local normalization layer.
-        return np.random.rand(1, 27, 27, 256)
-    elif layer_index == 6:
-        # layer 6 is a max pool layer
-        return np.random.rand(1, 13, 13, 256)
-    elif layer_index in [7, 8]:
-        # layer 7 is a regular convolution layer.
-        # layer 8 splits the input into two (1, 13, 13, 192)-shaped tensors, preforms a different convolution
-        # on each into a (1, 13, 13, 192)-shaped tensor, concatenates them, and preforms a relu activation on the result.
-        return np.random.rand(1, 13, 13, 384)
-    elif layer_index == 9:
-        # layer 9 splits the input into two (1, 13, 13, 192)-shaped tensors, preforms a different convolution
-        # on each into a (1, 13, 13, 192)-shaped tensor, concatenates them, and preforms a relu activation on the result.
-        return np.random.rand(1, 13, 13, 256)
-    elif layer_index == 10:
-        # layer 10 is a max pool layer.
-        return np.random.rand(1, 6, 6, 256)
-    elif layer_index in [11, 12]:
-        # layer 11 is flattening the input into a vector with shape (1, 9216), passes the vector through a dense
-        # layer with 4096 neurons, and then preforms relu activation.
-        # layer 12 is a dense layer with 4096 neurons, and a relu activation afterwards.
-        return np.random.rand(1, 4096)
-    elif layer_index == 13:
-        # layer 13 is a dense layer with 4096 inputs and 1000 outputs, and a softmax activation on the output vector afterwards.
-        activation = np.zeros((1000, ))
-        activation[np.random.randint(0, 1000)] = 1
-        return activation
-
-
 def main():
-    layer_index = 0
-    # target_activation = get_random_target_activation_for_model(layer_index)  # irrelevant - should remove later
+    layer_index = 13
+    neuron_index = 6
     model = load_trained_model()
-    image, losses, norms = visualize_activation(model, layer_index, target_activation)
-    if layer_index == 13:
-        print('Target activation: {} \nActual activation: {}'.format(classes[np.argmax(target_activation)], classes[np.argmax(model(image.reshape((1, ) + image.shape)))]))
-    show_image(image, 'Optimized Image After {} Steps'.format(len(losses)))
-    plot([i for i in range(len(losses))], losses, title='Loss', xlabel='iteration', ylabel='loss')
-    plot([i for i in range(len(norms))], norms, title='Norm', xlabel='iteration', ylabel='norm')
+    result, loss, norm = visualize_activation(model, layer_index, neuron_index)
+    print("Target classification: {}\nActual classification: {}".format(classes[neuron_index], classes[np.argmax(model(result.reshape((1, ) + result.shape)))]))
+    result = normalize_image(result)
+    show_image(result)
+    x = [i for i in range(len(loss))]
+    plot(x, loss, title='loss')
+    plot(x, norm, title='norm')
     plt.show()
 
 
