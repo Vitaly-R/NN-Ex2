@@ -183,6 +183,16 @@ def visualize_activation(model, layer_index, target_activation, reg_coeff=1e-5, 
     return np.asarray(image[0]), losses, norms
 
 
+@tf.function
+def optimization_step(mode, layerIndex, neuronIndex, regCoeff, optimizer, lossFunction, trainingLoss):
+    pass
+
+
+def visualize_neuron(model, layerIndex, neuronIndex, regCoeff=1e-5, optimization_steps=10000, learning_rate=0.01):
+    image = tf.Variable(generate_random_image())
+    lossFunction = None  # set as negative
+
+
 def get_random_target_activation_for_model(layer_index):
     """
     Generates a random activation of a layer in the model.
@@ -235,7 +245,7 @@ def get_random_target_activation_for_model(layer_index):
 
 def main():
     layer_index = 0
-    target_activation = get_random_target_activation_for_model(layer_index)
+    # target_activation = get_random_target_activation_for_model(layer_index)  # irrelevant - should remove later
     model = load_trained_model()
     image, losses, norms = visualize_activation(model, layer_index, target_activation)
     if layer_index == 13:
