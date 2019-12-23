@@ -21,7 +21,7 @@ def step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_in
     optimizer.apply_gradients(zip(gradients, [image, ]))
 
 
-def visualize_activation(model, layer_index, neuron_index, reg_coeff=1e-4, optimization_steps=10000, learning_rate=0.1):
+def visualize_activation(model, layer_index, neuron_index, reg_coeff=1e-4, optimization_steps=40000, learning_rate=0.01):
     image = tf.Variable(generate_random_image())
     training_loss = tf.keras.metrics.Mean(name='training_loss')
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
