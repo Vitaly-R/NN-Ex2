@@ -3,15 +3,8 @@ import numpy as np
 from PIL import Image
 from classes import classes
 import tensorflow as tf
-
-# TODO to change to tensorflow.keras before submission
-from keras.layers import Dense, Flatten, Conv2D, Activation, MaxPooling2D, Dropout, Conv2DTranspose, Reshape
-from keras import Model
-import keras.losses
-import keras.metrics
-import keras.optimizers
-
-
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, Activation, MaxPooling2D, Dropout, Conv2DTranspose
+from tensorflow.keras import Model
 import matplotlib.pyplot as plt
 
 
@@ -52,7 +45,7 @@ class MyModel(Model):
 
     # Network definition
     def __call__(self, x, **kwargs):
-        for i, layer in enumerate(self.model_layers, 1):
+        for layer in self.model_layers:
             x = layer(x)
         return x
 
@@ -91,7 +84,7 @@ class MyModel(Model):
     def layer_8(self, x):
         s = x.get_shape()
         y = tf.slice(x, [0, 0, 0, 0], [s[0], s[1], s[2], 192])
-        y1 = tf.slice(x, [0, 0, 0, 193], [s[0], s[1], s[2], s[3] - 192])
+        y1 = tf.slice(x, [0, 0, 0, 192], [s[0], s[1], s[2], s[3] - 192])
         a = self.conv4a(y)
         b = self.conv4b(y1)
         c = tf.concat((a, b), 3)
@@ -100,7 +93,7 @@ class MyModel(Model):
     def layer_9(self, x):
         s = x.get_shape()
         y = tf.slice(x, [0, 0, 0, 0], [s[0], s[1], s[2], 192])
-        y1 = tf.slice(x, [0, 0, 0, 193], [s[0], s[1], s[2], s[3] - 192])
+        y1 = tf.slice(x, [0, 0, 0, 192], [s[0], s[1], s[2], s[3] - 192])
         a = self.conv5a(y)
         b = self.conv5b(y1)
         c = tf.concat((a, b), 3)
@@ -141,8 +134,14 @@ def load_trained_model():
 
 
 def read_image(path='./AlexnetWeights/poodle.png'):
-    im = Image.open(path)
-    return process_image(im)
+    img = Image.open(path)
+    return process_image(img)
+
+
+def generate_random_image():
+    img = np.random.rand(HEIGHT, WIDTH, CHANNELS) * 255
+    img = Image.fromarray(img.astype('uint8')).convert('RGBA')
+    return process_image(img)
 
 
 def process_image(image):
@@ -179,32 +178,49 @@ def plot(x, y1, y2=None, title='', xlabel='', ylabel='', label1='', label2=''):
 
 
 @tf.function
-def step(image, target, model, loss_function, training_loss, image_norm, optimizer, reg_coeff, layer_index):
+def step(image, model, loss_function, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index):
     with tf.GradientTape() as tape:
-        norm = tf.square(tf.norm(image))
-        prediction = model.run_up_to(layer_index, image)
-        loss = loss_function(target, prediction) * (reg_coeff * norm)
+        y = tf.signal.rfft2d(image)
+        y = tf.math.real(y)
+        y = tf.norm(y)
+        norm = tf.square(y)
+        prediction = model.run_up_to(layer_index, image)[0]
+        if len(prediction.shape) == 3:
+            loss = -tf.math.reduce_mean(prediction[:, :, neuron_index]) + reg_coeff * norm
+        else:
+            loss = -tf.math.reduce_mean(prediction[neuron_index]) + reg_coeff * norm
+
     training_loss(loss)
     image_norm(norm)
     gradients = tape.gradient(loss, [image, ])
     optimizer.apply_gradients(zip(gradients, [image, ]))
 
 
-def visualize_activation(model, layer_index, target_activation, reg_coeff=1e-5, optimization_steps=1000, learning_rate=50):
+def visualize_activation(model, layer_index, neuron_index, reg_coeff=1e-4, optimization_steps=25000, learning_rate=0.01):
     image = tf.Variable(read_image())
-    label = [tf.Variable(target_activation)]
-    loss_function = keras.losses.CategoricalCrossentropy()
-    training_loss = keras.metrics.Mean(name='training_loss')
+
+    loss_function = tf.keras.losses.CategoricalCrossentropy()
+    training_loss = tf.keras.metrics.Mean(name='training_loss')
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)  # todo: maybe pass as a parameter for us to be able to change it for each layer
-    image_norm = keras.metrics.Mean(name='input_norm')  # todo: maybe remove?
+    image_norm = tf.keras.metrics.Mean(name='input_norm')  # todo: maybe remove?
     losses = list()
     norms = list()  # todo: might remove
     for i in range(1, optimization_steps + 1):
         print('step {}'.format(i)) if i in [1, optimization_steps] or not i % (optimization_steps // 10) else None
-        step(image, label, model, loss_function, training_loss, image_norm, optimizer, reg_coeff, layer_index)
+        step(image, model, loss_function, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index)
         losses.append(training_loss.result())
         norms.append(image_norm.result())
     return np.asarray(image[0]), losses, norms
+
+
+@tf.function
+def optimization_step(mode, layerIndex, neuronIndex, regCoeff, optimizer, lossFunction, trainingLoss):
+    pass
+
+
+def visualize_neuron(model, layerIndex, neuronIndex, regCoeff=1e-5, optimization_steps=10000, learning_rate=0.01):
+    image = tf.Variable(generate_random_image())
+    lossFunction = None  # set as negative
 
 
 def get_random_target_activation_for_model(layer_index):
@@ -258,21 +274,15 @@ def get_random_target_activation_for_model(layer_index):
 
 
 def main():
-    layer_index = 8
-    target_activation = get_random_target_activation_for_model(layer_index)
+    layer_index = 2
+    neuron_index = 3
     model = load_trained_model()
-    image, losses, norms = visualize_activation(model, layer_index, target_activation)
-    if layer_index == 13:
-        print('Target activation: {} \nActual activation: {}'.format(classes[np.argmax(target_activation)], classes[np.argmax(model(image.reshape((1, ) + image.shape)))]))
+    image, losses, norms = visualize_activation(model, layer_index, neuron_index)
     show_image(image, 'Optimized Image After {} Steps'.format(len(losses)))
-    # plot(np.array([i for i in range(len(losses))]), np.array(losses), title='Loss', xlabel='iteration', ylabel='loss')
-    # plot(np.array([i for i in range(len(norms))]), np.array(norms), title='Norm', xlabel='iteration', ylabel='norm')
+    plot([i for i in range(len(losses))], losses, title='Loss', xlabel='iteration', ylabel='loss')
+    plot([i for i in range(len(norms))], norms, title='Norm', xlabel='iteration', ylabel='norm')
     plt.show()
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
