@@ -1,8 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
-from classes import classes
 import tensorflow as tf
-import matplotlib.pyplot as plt
 from Model import load_trained_model, generate_random_image, normalize_image, show_image, plot
 
 
@@ -21,7 +19,7 @@ def step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_in
     optimizer.apply_gradients(zip(gradients, [image, ]))
 
 
-def visualize_activation(model, layer_index, neuron_index, reg_coeff=1e-4, optimization_steps=20000, learning_rate=0.1):
+def visualize_activation(model, layer_index, neuron_index, reg_coeff, optimization_steps, learning_rate):
     image = tf.Variable(generate_random_image())
     training_loss = tf.keras.metrics.Mean(name='training_loss')
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
@@ -36,21 +34,13 @@ def visualize_activation(model, layer_index, neuron_index, reg_coeff=1e-4, optim
     return np.asarray(image[0]), losses, norms
 
 
-def main():
-    layer_index = 14
-    neuron_index = 7
+def q1(layer_index, neuron_index, regularization_coefficient=0.5e-4, num_steps=55000, learning_rate=0.1, show_resulting_image=True, show_plots=False):
     model = load_trained_model()
-    result, loss, norm = visualize_activation(model, layer_index, neuron_index)
-    pred = model(result.reshape((1, ) + result.shape))[0]
-    print("Target classification: {}\nActual classification: {}".format(classes[neuron_index], classes[np.argmax(pred)]))
-    print("Confidence: {}%".format(int(10000 * pred[np.argmax(pred)]) / 100))
-    result = normalize_image(result)
-    show_image(result)
-    x = [i for i in range(len(loss))]
-    plot(x, loss, title='loss')
-    plot(x, norm, title='norm')
-    plt.show()
-
-
-if __name__ == '__main__':
-    main()
+    result, loss, norm = visualize_activation(model, layer_index, neuron_index, regularization_coefficient, num_steps, learning_rate)
+    if show_resulting_image:
+        result = normalize_image(result)
+        show_image(result)
+    if show_plots:
+        x = [i for i in range(len(loss))]
+        plot(x, loss, title='loss')
+        plot(x, norm, title='norm')
