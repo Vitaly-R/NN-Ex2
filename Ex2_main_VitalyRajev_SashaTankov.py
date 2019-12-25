@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 from Q1 import q1
-
+from Q2 import q2
+from Q3 import q3
+from Q4 import q4
 
 """
 Main file of Ex2 in Introduction to Neural Networks
@@ -31,7 +33,10 @@ layer 13a: A Softmax activation layer with output shape (1, 1000).
 
 
 def main():
-    q1(layer_index=0, neuron_index=0)
+    # q1(layer_index=14, neuron_index=84, show_plots=True, num_steps=5000)
+    # q2(layer_index=1, neuron_index=50, show_plots=True, num_steps=5000)
+    # q3(neuron_index=97, show_plots=True, num_steps=5000)
+    q4(class_index=267)
     plt.show()
 
 

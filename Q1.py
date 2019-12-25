@@ -8,7 +8,7 @@ from Model import load_trained_model, generate_random_image, normalize_image, sh
 def step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index):
     with tf.GradientTape() as tape:
         norm = tf.square(tf.norm(image))
-        prediction = model.run_up_to(layer_index, image)[0]  # since we predict for one image at each step, no need for the batch index
+        prediction = model.run_up_to(layer_index, image)[0]
         if len(prediction.shape) == 3:
             loss = -tf.math.reduce_mean(prediction[:, :, neuron_index]) + reg_coeff * norm
         else:
@@ -23,9 +23,9 @@ def visualize_activation(model, layer_index, neuron_index, reg_coeff, optimizati
     image = tf.Variable(generate_random_image())
     training_loss = tf.keras.metrics.Mean(name='training_loss')
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    image_norm = tf.keras.metrics.Mean(name='input_norm')  # todo: maybe remove?
+    image_norm = tf.keras.metrics.Mean(name='input_norm')
     losses = list()
-    norms = list()  # todo: might remove
+    norms = list()
     for i in range(1, optimization_steps + 1):
         step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index)
         losses.append(training_loss.result())
