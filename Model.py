@@ -153,6 +153,16 @@ def generate_random_image():
     return process_image(img)
 
 
+def read_image(path):
+    """
+    Reads an image from the given path and processes it.
+    :param path: Path of the image.
+    :return: A processed image.
+    """
+    img = Image.open(path)
+    return process_image(img)
+
+
 def process_image(image):
     """
     Processes the given image into a batch of one image of type float32 with values in range [-128, 128].
@@ -176,13 +186,13 @@ def normalize_image(image):
     return im
 
 
-def show_image(image, title=''):
+def show_image(image, title='', cmap=None):
     """
     Shows the given image in a figure with the given title.
     """
     plt.figure()
     plt.title(title)
-    plt.imshow(image)
+    plt.imshow(image, cmap=cmap) if cmap is not None else plt.imshow(image)
 
 
 def plot(x, y, title='', xlabel='', ylabel=''):

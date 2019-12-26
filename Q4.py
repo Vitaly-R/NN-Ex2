@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
 from classes import classes
-from Model import load_trained_model, read_image, show_image, HEIGHT, WIDTH
+from Model import read_image, show_image, HEIGHT, WIDTH
 
 
 def set_zero_block(im, pos_x, pos_y, width_block, height_block):

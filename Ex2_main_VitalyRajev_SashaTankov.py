@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from Model import load_trained_model
 from Q1 import q1
 from Q2 import q2
 from Q3 import q3
@@ -10,7 +11,7 @@ Main file of Ex2 in Introduction to Neural Networks
 ---------------- Network Architecture ----------------
 The network itself is a pre-trained Alexnet network.
 For the purpose of the exercise, we split the layers of the network in the following way:
-input layer: A batch of 1 RGB image. Layer output shape - (1, 224, 224, 3).
+input layer (0): A batch of 1 RGB image. Layer output shape - (1, 224, 224, 3).
 layer 1: A Convolution layer followed by a ReLU activation with an output of shape (1, 56, 56, 96).
 layer 2: A Local Response Normalization layer with an output of shape (1, 56, 56, 96).
 layer 3: A Max Pool layer with an output shape of (1, 27, 27, 96).
@@ -27,16 +28,17 @@ layer 10: A Max Pool layer with an output shape of (1, 6, 6, 256).
 layer 11: A Flattening layer (into shape (1, 9216)), followed by a Dense layer of 4096 neurons, followed by a ReLU activation. Output shape is (1, 4096).
 layer 12: A Dense layer of 4096 neurons followed by a ReLU activation. Output shape is (1, 4096).
 layer 13: A Dense layer of 1000 neurons. Output shape is (1, 1000).
-layer 13a: A Softmax activation layer with output shape (1, 1000).
+layer 13a (14): A Softmax activation layer with output shape (1, 1000).
 
 """
 
 
 def main():
-    # q1(layer_index=14, neuron_index=84, show_plots=True, num_steps=5000)
-    # q2(layer_index=1, neuron_index=50, show_plots=True, num_steps=5000)
-    # q3(neuron_index=97, show_plots=True, num_steps=5000)
-    q4(class_index=267)
+    model = load_trained_model()
+    q1(model=model, show_plots=True, learning_rate=1, regularization_coefficient=1e-3)
+    # q2(model=model, show_plots=True)
+    # q3(model=model, show_plots=True)
+    # q4(model=model)
     plt.show()
 
 

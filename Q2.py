@@ -1,23 +1,28 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
-from PIL import Image
 import tensorflow as tf
-from Model import load_trained_model, process_image,  show_image, plot, normalize_image
-
-
-def read_image(path):
-    img = Image.open(path)
-    return process_image(img)
+from Model import load_trained_model,  show_image, plot, normalize_image, read_image
 
 
 @tf.function
-def step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index):
+def step(image, model, training_loss, image_norm, optimizer, reg_coeff, neuron_index):
+    """
+        A single input optimization step.
+        :param image: The input which will be optimized this step.
+        :param model: The model for which the input will be optimized.
+        :param training_loss: A tensorflow metric keeping track of the loss during optimization.
+        :param image_norm: A tensorflow metric keeping track of the norm of the image during optimization.
+        :param optimizer: The optimizer used for applying the gradients.
+        :param reg_coeff: The regularization coefficient over the norm of the image.
+        :param layer_index: The index of the layer in which we would like to optimize for a certain neuron.
+        :param neuron_index: The index of the neuron within that layer which we would like to maximize.
+    """
     with tf.GradientTape() as tape:
         y = tf.signal.rfft2d(image)
         y = tf.math.real(y)
         y = tf.norm(y)
         norm = tf.square(y)
-        prediction = model.run_up_to(layer_index, image)[0]
+        prediction = model.run_up_to(13, image)[0]
         if len(prediction.shape) == 3:
             loss = -tf.math.reduce_mean(prediction[:, :, neuron_index]) + reg_coeff * norm
         else:
@@ -28,27 +33,55 @@ def step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_in
     optimizer.apply_gradients(zip(gradients, [image, ]))
 
 
-def visualize_activation(model, image_path, layer_index, neuron_index, reg_coeff=1e-4, optimization_steps=55000, learning_rate=0.01):
+def visualize_activation(model, image_path, neuron_index, reg_coeff, optimization_steps, learning_rate):
+    """
+        Runs the main optimization loop, which optimizes a loaded image to visualize neurons in the last dense layer of the network
+        before the softmax activation with regularization based on natural image statistics.
+        :param model: The model over which the optimization is made.
+        :param image_path: The path of the image to open.
+        :param neuron_index: The index of the neuron in the layer which we want to maximize.
+        :param reg_coeff: A regularization coefficient for the norm of the resulting image.
+        :param optimization_steps: Number of optimization steps to preform.
+        :param learning_rate: The learning rate for the optimizer.
+        :return: The resulting image (RGB), a list of loss values per iteration, a list of image norms per iteration.
+    """
     image = tf.Variable(read_image(image_path))
     training_loss = tf.keras.metrics.Mean(name='training_loss')
-    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     image_norm = tf.keras.metrics.Mean(name='input_norm')
     losses = list()
     norms = list()
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     for i in range(1, optimization_steps + 1):
-        print('step {}'.format(i)) if i in [1, optimization_steps] or not i % (optimization_steps // 100) else None
-        step(image, model, training_loss, image_norm, optimizer, reg_coeff, layer_index, neuron_index)
+        step(image, model, training_loss, image_norm, optimizer, reg_coeff, neuron_index)
         losses.append(training_loss.result())
         norms.append(image_norm.result())
+        print('step {}: loss - {}, image norm - {}'.
+              format(i, losses[-1], norms[-1])) \
+            if i in [1, optimization_steps] or not (optimization_steps // 100) or not i % (optimization_steps // 100) else None
     return np.asarray(image[0]), losses, norms
 
 
-def q2(layer_index, neuron_index, image_path='./poodle.png', regularization_coefficient=0.5e-4, num_steps=55000, learning_rate=0.1, show_resulting_image=True, show_plots=False):
-    model = load_trained_model()
-    image, losses, norms = visualize_activation(model, image_path, layer_index, neuron_index, regularization_coefficient, num_steps, learning_rate)
+def q2(model, neuron_index=50, image_path='./poodle.jpg', regularization_coefficient=5e-5, num_steps=50000, learning_rate=0.1, show_resulting_image=True, show_plots=False):
+    """
+        Runs an input optimization to maximize the neuron {neuron_index} in layer {layer_index}.
+        :param model: A pre-trained model for which we optimize the input.
+        :param neuron_index: The index of the neuron in the layer which we want to maximize.
+        :param image_path: The path of the image to load.
+        :param regularization_coefficient: A regularization coefficient for the norm of the resulting image.
+        :param num_steps: Number of optimization steps to preform.
+        :param learning_rate: The learning rate for the optimizer.
+        :param show_resulting_image: Weather to show the resulting image.
+        :param show_plots: Weather to plot the loss and the norm per iteration.
+    """
+    image, loss, norm = visualize_activation(model, image_path, neuron_index, regularization_coefficient, num_steps, learning_rate)
     if show_resulting_image:
         image = normalize_image(image)
-        show_image(image, 'Optimized Image After {} Steps'.format(len(losses)))
+        show_image(image, 'Question 2\nOptimized Image\niterations: {} | learning rate: {} | regularization coefficient: {}'.format(len(loss), learning_rate, regularization_coefficient))
     if show_plots:
-        plot([i for i in range(len(losses))], losses, title='Loss', xlabel='iteration', ylabel='loss')
-        plot([i for i in range(len(norms))], norms, title='Norm', xlabel='iteration', ylabel='norm')
+        x = [i + 1 for i in range(len(loss))]
+        plot(x, loss, 'Question 2\nLoss per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
+             format(num_steps, learning_rate, regularization_coefficient),
+             'iteration', 'loss')
+        plot(x, norm, 'Question 2\nImage Norm per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
+             format(num_steps, learning_rate, regularization_coefficient),
+             'iteration', 'norm')
