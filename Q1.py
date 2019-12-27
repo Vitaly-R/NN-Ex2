@@ -58,7 +58,7 @@ def visualize_activation(model, layer_index, neuron_index, reg_coeff, optimizati
     return np.asarray(image[0]), losses, norms
 
 
-def q1(model, layer_index=13, neuron_index=84, regularization_coefficient=5e-3, num_steps=50000, learning_rate=0.1, show_resulting_image=True, show_plots=False):
+def q1(model, layer_index=13, neuron_index=84, regularization_coefficient=0.001, num_steps=50000, learning_rate=0.1, show_resulting_image=True, show_plots=False):
     """
         Runs an input optimization to maximize the neuron {neuron_index} in layer {layer_index} in the given model.
         :param model: A pre-trained model for which we optimize the input.
@@ -79,6 +79,6 @@ def q1(model, layer_index=13, neuron_index=84, regularization_coefficient=5e-3, 
         plot(x, loss, 'Question 1\nLoss per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
              format(num_steps, learning_rate, regularization_coefficient),
              'iteration', 'loss')
-        plot(x, norm, 'Question 1\nImage Norm per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
+        plot(x, norm, 'Question 1\nSquared Image Norm per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
              format(num_steps, learning_rate, regularization_coefficient),
              'iteration', 'image norm')
