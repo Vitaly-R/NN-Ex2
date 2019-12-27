@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
 import tensorflow as tf
-from Model import load_trained_model,  show_image, plot, normalize_image, read_image
+from Model import show_image, plot, normalize_image, read_image
 
 
 @tf.function
