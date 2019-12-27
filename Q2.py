@@ -82,6 +82,6 @@ def q2(model, neuron_index=50, image_path='./poodle.jpg', regularization_coeffic
         plot(x, loss, 'Question 2\nLoss per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
              format(num_steps, learning_rate, regularization_coefficient),
              'iteration', 'loss')
-        plot(x, norm, 'Question 2\nImage Norm per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
+        plot(x, norm, 'Question 2\nImage Fourier Transform Squared Norm per Iteration\niterations: {} | learning rate: {} | regularization coefficient: {}'.
              format(num_steps, learning_rate, regularization_coefficient),
-             'iteration', 'norm')
+             'iteration', 'image norm')
