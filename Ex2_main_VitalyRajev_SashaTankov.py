@@ -35,10 +35,10 @@ layer 13a (14): A Softmax activation layer with output shape (1, 1000).
 
 def main():
     model = load_trained_model()
-    q1(model=model, show_plots=True, learning_rate=1, regularization_coefficient=1e-3)
-    # q2(model=model, show_plots=True)
-    # q3(model=model, show_plots=True)
-    # q4(model=model)
+    q1(model=model, show_plots=True)
+    q2(model=model, show_plots=True)
+    q3(model=model, show_plots=True)
+    q4(model=model)
     plt.show()
 
 
